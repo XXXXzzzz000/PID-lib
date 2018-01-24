@@ -5,7 +5,7 @@
  * @addtogroup PID
  * @{
  */
-#include "PID.h"
+#include "PID_V2.h"
 /*===========================================================================*/
 /* 模块本地定义.                                                              */
 /*===========================================================================*/
@@ -29,23 +29,32 @@
 /* unsigned long (*millis)(void); */
 static unsigned long millis(void)
 {
-    unsigned long ret=0;
-#if 0
+
+#if defined(PID_TEST)
+    static long ret = 0;
+    ret += 100;
+#endif
+
+#if !defined(PID_TEST)
+    unsigned long ret = 0;
     systime_t tim = chVTGetSystemTimeX();
     ret = ST2MS(tim);
-    chprintf((BaseSequentialStream *)&SD2, "%ld\r\n",ret);
+    chprintf((BaseSequentialStream *)&SD2, "%ld\r\n", ret);
 #endif
+
     return ret;
 }
 /**
  * @brief 
  * @param pidp 
- * @note  做所有的事情需要发生，以确保从手动模式到自动模式的无扰转换。
+ * @note  用于从手动模式到自动模式的无扰转换。
  */
 void PID_Initialize(PID *pidp)
 {
-    pidp->outputSum = *pidp->myOutput;
-    pidp->lastInput = *pidp->myInput;
+    /* 保存输出和 */
+    pidp->outputSum = *pidp->outputp;
+    pidp->lastInput = *pidp->inputp;
+    /* 检查输出是否超出范围 */
     if (pidp->outputSum > pidp->outMax)
         pidp->outputSum = pidp->outMax;
     else if (pidp->outputSum < pidp->outMin)
@@ -55,12 +64,13 @@ void PID_Initialize(PID *pidp)
  * @brief 
  * @param pidp 
  * @param NewSampleTime 
- * @note                 设置执行计算的周期（以毫秒为单位）
+ * @note                 更改采样时间（以毫秒为单位）
  */
 void PID_SetSampleTime(PID *pidp, int NewSampleTime)
 {
     if (NewSampleTime > 0)
     {
+        /* 按照比例更改ki kd的值,并改为新的采样时间 */
         double ratio = (double)NewSampleTime / (double)pidp->SampleTime;
         pidp->ki *= ratio;
         pidp->kd /= ratio;
@@ -71,13 +81,13 @@ void PID_SetSampleTime(PID *pidp, int NewSampleTime)
  * @brief 
  * @param pidp 
  * @param Direction 
- * @note  PID将被连接到一个DIRECT动作过程（+输出导致+输入）或一个REVERSE动作过程（+输出导致-Input。）
- *        我们需要知道哪一个，否则我们可能会增加输出，当我们应该正在减少。 这是从构造函数中调用的。
+ * @note  DIRECT(正反馈)或者REVERSE(负反馈)
  */
 void PID_SetControllerDirection(PID *pidp, int Direction)
 {
     if (pidp->inAuto && Direction != pidp->controllerDirection)
     {
+        /* 对pid参数取反 */
         pidp->kp = (0 - pidp->kp);
         pidp->ki = (0 - pidp->ki);
         pidp->kd = (0 - pidp->kd);
@@ -89,50 +99,25 @@ void PID_SetControllerDirection(PID *pidp, int Direction)
 /*===========================================================================*/
 /**
  * @brief               构造函数1
- * @param pidp 
- * @param Input 
- * @param Output 
- * @param Setpoint 
- * @param Kp 
- * @param Ki 
- * @param Kd 
- * @param POn 
- * @param ControllerDirection 
  */
 void PID_Init(PID *pidp, PID_Config *pidcfg)
 {
-
-    pidp->myOutput = pidcfg->Output;
-    pidp->myInput = pidcfg->Input;
-    pidp->mySetpoint = pidcfg->Setpoint;
+    /* 设置输入,输出,设置点,是否自动 */
+    pidp->inputp = pidcfg->Input;
+    pidp->outputp = pidcfg->Output;
+    pidp->setpointp = pidcfg->Setpoint;
     pidp->inAuto = pidcfg->inAuto;
-    /* 默认输出限制对应于arduino pwm限制 */
+    /* 设置输出限制 */
     PID_SetOutputLimits(pidp, pidcfg->Min, pidcfg->Max);
-    //默认的控制器采样时间是0.1秒
+    /* 默认的控制器采样时间是0.1秒 */
     pidp->SampleTime = pidcfg->SampleTime;
-
+    /* 设置正/负反馈 */
     PID_SetControllerDirection(pidp, pidcfg->ControllerDirection);
+    /* 设置pid参数,是否开启pon(如果需要从手动到自动切换则需要打开) */
     PID_SetTunings(pidp, pidcfg->Kp, pidcfg->Ki, pidcfg->Kd, pidcfg->POn);
     /* millis: 函数可获取机器运行的时间长度，单位ms */
     pidp->lastTime = millis() - pidp->SampleTime;
 }
-#if 0
-/**
- * @brief                      构造函数2
- * @param pidp 
- * @param Input 
- * @param Output 
- * @param Setpoint 
- * @param Kp 
- * @param Ki 
- * @param Kd 
- * @param ControllerDirection 
- */
-void PID2(PID *pidp, double *Input, double *Output, double *Setpoint, double Kp, double Ki, double Kd, int ControllerDirection)
-{
-    PID_Init(pidp, Input, Output, Setpoint, Kp, Ki, Kd, P_ON_E, ControllerDirection);
-}
-#endif
 
 /**
  * @brief         
@@ -155,13 +140,12 @@ bool PID_Compute(PID *pidp)
     if (1)
     {
         /*计算所有的工作错误变量*/
-        double input = *pidp->myInput;
-        double error = *pidp->mySetpoint - input;
+        double input = *pidp->inputp;
+        double error = *pidp->setpointp - input;
         double dInput = (input - pidp->lastInput);
         pidp->outputSum += (pidp->ki * error);
 
         /* 如果指定了P_ON_M，则在测量上添加比例 */
-        /* FIXME:pon相关,实际判断都使用了pone */
         if (!pidp->pOnE)
             pidp->outputSum -= pidp->kp * dInput;
 
@@ -172,7 +156,6 @@ bool PID_Compute(PID *pidp)
 
         /*如果指定了P_ON_E，则在错误上添加比例*/
         double output;
-        /* FIXME:pon相关,实际判断都使用了pone */
         if (pidp->pOnE)
             output = pidp->kp * error;
         else
@@ -185,7 +168,7 @@ bool PID_Compute(PID *pidp)
             output = pidp->outMax;
         else if (output < pidp->outMin)
             output = pidp->outMin;
-        *pidp->myOutput = output;
+        *pidp->outputp = output;
 
         /*记住下次有些变数*/
         pidp->lastInput = input;
@@ -230,20 +213,6 @@ void PID_SetTunings(PID *pidp, double Kp, double Ki, double Kd, int POn)
         pidp->kd = (0 - pidp->kd);
     }
 }
-#if 0
-/**
- * @brief 
- * @param pidp 
- * @param Kp 
- * @param Ki 
- * @param Kd 
- * @note        使用最后一次POn设置设置Tunings
- */
-void SetTunings2(PID *pidp, double Kp, double Ki, double Kd)
-{
-    SetTunings1(pidp, Kp, Ki, Kd, pidp->pOn);
-}
-#endif
 
 /**
  * @brief 
@@ -264,10 +233,10 @@ void PID_SetOutputLimits(PID *pidp, double Min, double Max)
 
     if (pidp->inAuto)
     {
-        if (*pidp->myOutput > pidp->outMax)
-            *pidp->myOutput = pidp->outMax;
-        else if (*pidp->myOutput < pidp->outMin)
-            *pidp->myOutput = pidp->outMin;
+        if (*pidp->outputp > pidp->outMax)
+            *pidp->outputp = pidp->outMax;
+        else if (*pidp->outputp < pidp->outMin)
+            *pidp->outputp = pidp->outMin;
 
         if (pidp->outputSum > pidp->outMax)
             pidp->outputSum = pidp->outMax;
@@ -298,7 +267,8 @@ void PID_SetMode(PID *pidp, int Mode)
  * @note  只是因为你设置Kp = -1并不意味着它实际上发生了。 这些函数查询PID的内部状态。
  *        他们在这里是为了显示的目的。 例如，这是PID前端使用的功能
  */
-#if 0
+//FIXME: 测试用的
+#if defined(PID_FRONT)
 double GetKp(PID *pidp) { return pidp->dispKp; }
 double GetKi(PID *pidp) { return pidp->dispKi; }
 double GetKd(PID *pidp) { return pidp->dispKd; }
