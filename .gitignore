@@ -52,3 +52,6 @@ Mkfile.old
 dkms.conf
 .release_time
 .PID_Basic.o_time
+**/build/**
+**/bin/**
+**/hello

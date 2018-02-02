@@ -1,2 +1,3 @@
 # arduino-pid-library-tester
-A simple throw-away program to test the Arduino PID Library
+
+投入数据对PIDlib进行测试
