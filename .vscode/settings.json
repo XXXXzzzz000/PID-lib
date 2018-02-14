@@ -1,5 +1,12 @@
 {
     "files.associations": {
-        "pid_v2.h": "c"
+        "pid_v2.h": "c",
+        "pid_autotune_v0.h": "c",
+        "istream": "c",
+        "optional": "c",
+        "ostream": "c",
+        "ratio": "c",
+        "system_error": "c",
+        "type_traits": "c"
     }
 }
