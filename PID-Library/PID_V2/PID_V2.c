@@ -52,8 +52,8 @@ static unsigned long millis(void)
 void PID_Initialize(PID *pidp)
 {
     /* 保存输出和 */
-    pidp->outputSum = *pidp->outputp;
-    pidp->lastInput = *pidp->inputp;
+    pidp->outputSum = *(pidp->outputp);
+    pidp->lastInput = *(pidp->inputp);
     /* 检查输出是否超出范围 */
     if (pidp->outputSum > pidp->outMax)
         pidp->outputSum = pidp->outMax;

@@ -1,4 +1,4 @@
-#include <PID_V2.h>
+#include "PID_V2.h"
 #include "PID_interfaces.h"
 #include <stdlib.h>
 //工作变量/初始条件
@@ -11,8 +11,18 @@ const double setpointStart = 200;
 //转换
 // PID myPID(&input, &output, &setpoint, kp, ki, kd, DIRECT);
 PID pid;
-PID_Config pid_cfg;
-
+PID_Config pid_cfg = {
+    &input,
+    &output,
+    &setpoint,
+    1,
+    1,
+    1,
+    P_ON_M,
+    DIRECT,
+    100,
+    1, 2,
+    AUTOMATIC};
 //用来模拟连接到pid的进程的参数
 #define NTHETA  50
 double kpmodel = 1, taup = 50, theta[NTHETA]={0.0};
@@ -25,7 +35,10 @@ unsigned long evalTime = 0, evalInc = 10,
               serialTime = 0, serialInc = 100;
 unsigned long now = 0;
 
-
+float myrandom(int X,int Y)
+{
+  return (float)(rand()%(Y-X+1)+X);
+}
 void SimulateInput()
 {
   //使用循环缓冲区创建一个死区时间
@@ -39,10 +52,9 @@ void SimulateInput()
     input = (kpmodel / taup) * (theta[tindex] - outputStart) + input;
   else
     input = (kpmodel / taup) * (theta[tindex] - outputStart) + (input - inputStart) * (1 - 1 / taup) + inputStart;
-
-rand
   //添加一些噪声
-  input += ((float)random(-10, 10)) / 100;
+
+  input += ((float)myrandom(-10, 10)) / 100;
 }
 
 void AlterSimulationConditions()
@@ -97,11 +109,11 @@ void AlterSimulationConditions()
     PID_SetMode(&pid,AUTOMATIC);
 
   //TODO:改变PID参数
-  // if (now > 43000) PID_SetTunings(&pid,3, .15, 0.15);
-  // else if (now > 39000) PID_SetTunings(&pid,0.5, .1, .05);
-  // else if (now > 30000) PID_SetTunings(&pid,0.1, .05, 0);
-  // else if (now > 13000) PID_SetTunings(&pid,0.5, 2, 0.15);
-  // else if (now > 9000) PID_SetTunings(&pid,2, 1, .05);
+  if (now > 43000) PID_SetTunings(&pid,3, .15, 0.15,pid.pOn);
+  else if (now > 39000) PID_SetTunings(&pid,0.5, .1, .05,pid.pOn);
+  else if (now > 30000) PID_SetTunings(&pid,0.1, .05, 0,pid.pOn);
+  else if (now > 13000) PID_SetTunings(&pid,0.5, 2, 0.15,pid.pOn);
+  else if (now > 9000) PID_SetTunings(&pid,2, 1, .05,pid.pOn);
 
   //model change: switch the nature of the process connected to the pid
   //模型更改：切换连接到pid的进程的性质
@@ -110,7 +122,14 @@ void AlterSimulationConditions()
 
 void DoSerial()
 {
+  static int tmp;
+  if(tmp==0)
+  {
+    printf("now\tsetpoint\tinput\toutput\r\n");
+    tmp=1;
+  }
   //TODO:串口输出
+  printf("%ld\t%lf\t%lf\t%lf\r\n",now,setpoint,input,output);
   // PID_Print(now); PID_Print(" ");
   // PID_Print(setpoint); PID_Print(" ");
   // PID_Print(input); PID_Print(" ");
@@ -184,6 +203,9 @@ int main()
 {
   setup();
 
-  loop();
+  while (1)
+  {
+    loop();
+  }
   return 0;
 }
