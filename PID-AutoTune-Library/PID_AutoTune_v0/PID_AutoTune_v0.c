@@ -1,6 +1,6 @@
 
-#include <PID_AutoTune_v0.h>
-
+#include "PID_AutoTune_v0.h"
+#include "PID_V2.h"
 
 void PID_ATune_Init(PID_ATune *pid_atunep,double* Input, double* Output)
 {
@@ -12,7 +12,7 @@ void PID_ATune_Init(PID_ATune *pid_atunep,double* Input, double* Output)
 	pid_atunep->oStep = 30;
 	//TODO:
 	PID_ATune_SetLookbackSec(pid_atunep,10);
-	lastTime = millis();
+	pid_atunep->lastTime = millis();
 	
 }
 

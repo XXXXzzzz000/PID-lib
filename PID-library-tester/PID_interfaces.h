@@ -19,9 +19,9 @@ void PID_Print(char * data)
     return ;
 }
 /* millis 接口 */
-unsigned long millis(void)
-{
-    static unsigned long tim;
-    return tim++;
-}
+// unsigned long millis(void)
+// {
+//     static unsigned long tim;
+//     return tim++;
+// }
 #endif // !__INTERFACES_H
