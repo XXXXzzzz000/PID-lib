@@ -37,7 +37,23 @@ void SerialSend();
 void SerialReceive();
 float myrandom(int X,int Y);
 void DoModel();
+static unsigned long millis(void)
+{
 
+#if defined(PID_TEST)
+    static long ret = 0;
+    ret += 100;
+#endif
+
+#if !defined(PID_TEST)
+    unsigned long ret = 0;
+    systime_t tim = chVTGetSystemTimeX();
+    ret = ST2MS(tim);
+    chprintf((BaseSequentialStream *)&SD2, "%ld\r\n", ret);
+#endif
+
+    return ret;
+}
 void changeAutoTune()
 {
   if (!tuning)
@@ -154,7 +170,7 @@ void setup()
   //TODO:串口发送
   // Serial.begin(9600);
 }
-# if 0 //TODO:调试相关的api待实现
+# if 1 //TODO:调试相关的api待实现
 void loop()
 {
 
@@ -162,27 +178,28 @@ void loop()
 
   if (!useSimulation)
   { //pull the input in from the real world
-    input = analogRead(0);
+    //TODO:读取输入
+    // input = analogRead(0);
   }
 
   if (tuning)
   {
-    int val = (aTune.Runtime());
+    int val = (PID_ATune_Runtime(&pid_aTune));
     if (val != 0)
     {
       tuning = false;
     }
     if (!tuning)
     { //we're done, set the tuning parameters
-      kp = aTune.GetKp();
-      ki = aTune.GetKi();
-      kd = aTune.GetKd();
-      myPID.SetTunings(kp, ki, kd);
+      kp = PID_ATune_GetKp(&pid_aTune);
+      ki = PID_ATune_GetKi(&pid_aTune);
+      kd = PID_ATune_GetKd(&pid_aTune);
+      PID_SetTunings(&pid,kp, ki, kd,pid.pOn);
       AutoTuneHelper(false);
     }
   }
   else
-    myPID.Compute();
+    PID_Compute(&pid);
 
   if (useSimulation)
   {
@@ -195,7 +212,8 @@ void loop()
   }
   else
   {
-    analogWrite(0, output);
+    //TODO:输出
+    // analogWrite(0, output);
   }
 
   //send-receive with processing if it's time
@@ -208,3 +226,12 @@ void loop()
 }
 #endif
 
+int main ()
+{
+  setup();
+  while (1)
+  {
+    loop();
+  }
+return 0;
+}
