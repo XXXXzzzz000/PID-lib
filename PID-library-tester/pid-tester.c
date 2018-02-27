@@ -24,8 +24,8 @@ PID_Config pid_cfg = {
     1, 2,
     AUTOMATIC};
 //用来模拟连接到pid的进程的参数
-#define NTHETA  50
-double kpmodel = 1, taup = 50, theta[NTHETA]={0.0};
+#define NTHETA 50
+double kpmodel = 1, taup = 50, theta[NTHETA] = {0.0};
 
 bool integrating = false;
 int tindex = 0;
@@ -34,10 +34,26 @@ int tindex = 0;
 unsigned long evalTime = 0, evalInc = 10,
               serialTime = 0, serialInc = 100;
 unsigned long now = 0;
-
-float myrandom(int X,int Y)
+static unsigned long millis(void)
 {
-  return (float)(rand()%(Y-X+1)+X);
+
+#if defined(PID_TEST)
+  static long ret = 0;
+  ret += 100;
+#endif
+
+#if !defined(PID_TEST)
+  unsigned long ret = 0;
+  systime_t tim = chVTGetSystemTimeX();
+  ret = ST2MS(tim);
+  chprintf((BaseSequentialStream *)&SD2, "%ld\r\n", ret);
+#endif
+
+  return ret;
+}
+float myrandom(int X, int Y)
+{
+  return (float)(rand() % (Y - X + 1) + X);
 }
 void SimulateInput()
 {
@@ -84,36 +100,41 @@ void AlterSimulationConditions()
 
   //限制变化
   if (now > 45000)
-    PID_SetOutputLimits(&pid,-100, 100);
+    PID_SetOutputLimits(&pid, -100, 100);
   else if (now > 39000)
-    PID_SetOutputLimits(&pid,0, 200);
+    PID_SetOutputLimits(&pid, 0, 200);
   else if (now > 30000)
-    PID_SetOutputLimits(&pid,-255, 255);
+    PID_SetOutputLimits(&pid, -255, 255);
   else if (now > 15000)
-    PID_SetOutputLimits(&pid,-100, 100);
+    PID_SetOutputLimits(&pid, -100, 100);
   else if (now > 9000)
-    PID_SetOutputLimits(&pid,0, 200);
+    PID_SetOutputLimits(&pid, 0, 200);
 
   //随机模式改变
   if (now > 15000)
-    PID_SetMode(&pid,AUTOMATIC);
+    PID_SetMode(&pid, AUTOMATIC);
   else if (now > 10900)
-    PID_SetMode(&pid,MANUAL);
+    PID_SetMode(&pid, MANUAL);
   else if (now > 8500)
-    PID_SetMode(&pid,AUTOMATIC);
+    PID_SetMode(&pid, AUTOMATIC);
   else if (now > 6800)
-    PID_SetMode(&pid,MANUAL);
+    PID_SetMode(&pid, MANUAL);
   else if (now > 4500)
-    PID_SetMode(&pid,AUTOMATIC);
+    PID_SetMode(&pid, AUTOMATIC);
   else if (now > 4000)
-    PID_SetMode(&pid,AUTOMATIC);
+    PID_SetMode(&pid, AUTOMATIC);
 
   //TODO:改变PID参数
-  if (now > 43000) PID_SetTunings(&pid,3, .15, 0.15,pid.pOn);
-  else if (now > 39000) PID_SetTunings(&pid,0.5, .1, .05,pid.pOn);
-  else if (now > 30000) PID_SetTunings(&pid,0.1, .05, 0,pid.pOn);
-  else if (now > 13000) PID_SetTunings(&pid,0.5, 2, 0.15,pid.pOn);
-  else if (now > 9000) PID_SetTunings(&pid,2, 1, .05,pid.pOn);
+  if (now > 43000)
+    PID_SetTunings(&pid, 3, .15, 0.15, pid.pOn);
+  else if (now > 39000)
+    PID_SetTunings(&pid, 0.5, .1, .05, pid.pOn);
+  else if (now > 30000)
+    PID_SetTunings(&pid, 0.1, .05, 0, pid.pOn);
+  else if (now > 13000)
+    PID_SetTunings(&pid, 0.5, 2, 0.15, pid.pOn);
+  else if (now > 9000)
+    PID_SetTunings(&pid, 2, 1, .05, pid.pOn);
 
   //model change: switch the nature of the process connected to the pid
   //模型更改：切换连接到pid的进程的性质
@@ -123,20 +144,18 @@ void AlterSimulationConditions()
 void DoSerial()
 {
   static int tmp;
-  if(tmp==0)
+  if (tmp == 0)
   {
     printf("now\tsetpoint\tinput\toutput\r\n");
-    tmp=1;
+    tmp = 1;
   }
   //TODO:串口输出
-  printf("%ld\t%lf\t%lf\t%lf\r\n",now,setpoint,input,output);
+  printf("%ld\t%lf\t%lf\t%lf\r\n", now, setpoint, input, output);
   // PID_Print(now); PID_Print(" ");
   // PID_Print(setpoint); PID_Print(" ");
   // PID_Print(input); PID_Print(" ");
   // PID_Println(output);
 }
-
-
 
 void setup()
 {
@@ -149,15 +168,14 @@ void setup()
     theta[i] = outputStart;
 
   //初始化PID
-  PID_SetOutputLimits(&pid,-250, 250);
-  PID_SetMode(&pid,AUTOMATIC);
+  PID_SetOutputLimits(&pid, -250, 250);
+  PID_SetMode(&pid, AUTOMATIC);
 
   //初始化串口
   // Serial.begin(115200);
   PID_Println("");
   PID_Println("Test Start");
 }
-
 
 void loop()
 {
@@ -194,7 +212,6 @@ void loop()
 
   evalTime += evalInc;
 }
-
 
 #if 0
 #endif // 0

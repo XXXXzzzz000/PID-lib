@@ -1,7 +1,24 @@
 
 #include "PID_AutoTune_v0.h"
 #include "PID_V2.h"
+#include <stdlib.h>
+static unsigned long millis(void)
+{
 
+#if defined(PID_TEST)
+    static long ret = 0;
+    ret += 100;
+#endif
+
+#if !defined(PID_TEST)
+    unsigned long ret = 0;
+    systime_t tim = chVTGetSystemTimeX();
+    ret = ST2MS(tim);
+    chprintf((BaseSequentialStream *)&SD2, "%ld\r\n", ret);
+#endif
+
+    return ret;
+}
 void PID_ATune_Init(PID_ATune *pid_atunep,double* Input, double* Output)
 {
 	pid_atunep->input = Input;
@@ -36,8 +53,8 @@ int PID_ATune_Runtime(PID_ATune *pid_atunep)
 	//TODO:
 	unsigned long now = millis();
 	
-	if((pid_atunep->now-pid_atunep->lastTime)<pid_atunep->sampleTime) return false;
-	pid_atunep->lastTime = pid_atunep->now;
+	if((now-pid_atunep->lastTime)<pid_atunep->sampleTime) return false;
+	pid_atunep->lastTime =now;
 	double refVal = *pid_atunep->input;
 	pid_atunep->justevaled=true;
 	if(!pid_atunep->running)
@@ -90,7 +107,7 @@ int PID_ATune_Runtime(PID_ATune *pid_atunep)
       pid_atunep->peak2 = pid_atunep->peak1;
     }
     pid_atunep->peak1 = now;
-    pid_atunep->peaks[peakCount] = refVal;
+    pid_atunep->peaks[pid_atunep->peakCount] = refVal;
    
   }
   else if(pid_atunep->isMin)
@@ -103,15 +120,15 @@ int PID_ATune_Runtime(PID_ATune *pid_atunep)
       pid_atunep->justchanged=true;
     }
     
-    if(pid_atunep->peakCount<10)pid_atunep->peaks[peakCount] = refVal;
+    if(pid_atunep->peakCount<10)pid_atunep->peaks[pid_atunep->peakCount] = refVal;
   }
   
   if(pid_atunep->justchanged && pid_atunep->peakCount>2)
   { //we've transitioned.  check if we can autotune based on the last peaks
     double avgSeparation = (abs(pid_atunep->peaks[pid_atunep->peakCount-1]-pid_atunep->peaks[pid_atunep->peakCount-2])+abs(pid_atunep->peaks[pid_atunep->peakCount-2]-pid_atunep->peaks[pid_atunep->peakCount-3]))/2;
-    if( pid_atunep->avgSeparation < 0.05*(pid_atunep->absMax-pid_atunep->absMin))
+    if( avgSeparation < 0.05*(pid_atunep->absMax-pid_atunep->absMin))
     {
-		PID_ATune_FinishUp();
+		PID_ATune_FinishUp(pid_atunep);
       pid_atunep->running = false;
 	  return 1;
 	 
@@ -146,7 +163,7 @@ double PID_ATune_GetKd(PID_ATune *pid_atunep)
 
 void PID_ATune_SetOutputStep(PID_ATune *pid_atunep,double Step)
 {
-	pid_atunep->oStep = pid_atunep->Step;
+	pid_atunep->oStep = Step;
 }
 
 double PID_ATune_GetOutputStep(PID_ATune *pid_atunep)
@@ -156,7 +173,7 @@ double PID_ATune_GetOutputStep(PID_ATune *pid_atunep)
 
 void PID_ATune_SetControlType(PID_ATune *pid_atunep,int Type) //0=PI, 1=PID
 {
-	pid_atunep->controlType = pid_atunep->Type;
+	pid_atunep->controlType =Type;
 }
 int PID_ATune_GetControlType(PID_ATune *pid_atunep)
 {
@@ -165,7 +182,7 @@ int PID_ATune_GetControlType(PID_ATune *pid_atunep)
 	
 void PID_ATune_SetNoiseBand(PID_ATune *pid_atunep,double Band)
 {
-	pid_atunep->noiseBand = pid_atunep->Band;
+	pid_atunep->noiseBand = Band;
 }
 
 double PID_ATune_GetNoiseBand(PID_ATune *pid_atunep)
@@ -179,7 +196,7 @@ void PID_ATune_SetLookbackSec(PID_ATune *pid_atunep,int value)
 	
 	if(value<25)
 	{
-		pid_atunep->nLookBack = pid_atunep->value * 4;
+		pid_atunep->nLookBack = value * 4;
 		pid_atunep->sampleTime = 250;
 	}
 	else

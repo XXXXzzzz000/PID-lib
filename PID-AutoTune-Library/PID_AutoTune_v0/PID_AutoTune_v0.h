@@ -26,7 +26,7 @@ typedef struct
 
 } PID_ATune;
 
-static void PID_ATune_FinishUp(PID_ATune *pid_atunep);
+ void PID_ATune_FinishUp(PID_ATune *pid_atunep);
 //commonly used functions **************************************************************************
 void PID_ATune_Init(PID_ATune *pid_atunep, double *Input, double *Output); // * Constructor.  links the Autotune to a given PID
 int PID_ATune_Runtime(PID_ATune *pid_atunep);															 // * Similar to the PID Compue function, returns non 0 when done

@@ -1,5 +1,6 @@
 #include "PID_V2.h"
 #include "PID_AutoTune_v0.h"
+#include <stdlib.h>
 
 int ATuneModeRemember = 2;
 double input = 80, output = 50, setpoint = 180;
@@ -29,6 +30,14 @@ PID_ATune pid_aTune;
 
 //set to false to connect to the real world
 bool useSimulation = true;
+
+void AutoTuneHelper(bool start);
+void changeAutoTune();
+void SerialSend();
+void SerialReceive();
+float myrandom(int X,int Y);
+void DoModel();
+
 void changeAutoTune()
 {
   if (!tuning)
@@ -106,6 +115,7 @@ float myrandom(int X,int Y)
 {
   return (float)(rand()%(Y-X+1)+X);
 }
+
 void DoModel()
 {
   //cycle the dead time
@@ -116,6 +126,7 @@ void DoModel()
   //compute the input
   input = (kpmodel / taup) * (theta[0] - outputStart) + input * (1 - 1 / taup) + ((float)myrandom(-10, 10)) / 100;
 }
+
 void setup()
 {
   PID_Init(&pid, &pid_cfg);
